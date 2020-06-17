@@ -1,0 +1,115 @@
+---
+
+categories:
+  AppFamily: DevOps
+name: '@@{calm_application_name}@@-@@{calm_array_index}@@-DC1'
+resources:
+  num_sockets: 2
+  num_vcpus_per_socket: 1
+  memory_size_mib: 4096
+  boot_config:
+    boot_device:
+      disk_address:
+        adapter_type: SCSI
+        device_index: 0
+  disk_list:
+  - data_source_reference:
+      kind: image
+      name: windows-2016
+      uuid: 466b612f-1c45-4510-9f2d-042ce925100b
+    device_properties:
+      device_type: DISK
+      disk_address:
+        adapter_type: SCSI
+        device_index: 0
+    disk_size_mib: 0
+  guest_customization:
+    sysprep:
+      install_type: PREPARED
+      unattend_xml: |-
+        <?xml version="1.0" encoding="UTF-8"?>
+        <unattend xmlns="urn:schemas-microsoft-com:unattend">
+          <settings pass="specialize">
+            <component name="Microsoft-Windows-TerminalServices-LocalSessionManager" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" processorArchitecture="amd64">
+              <fDenyTSConnections>false</fDenyTSConnections>
+            </component>
+            <component name="Microsoft-Windows-TerminalServices-RDP-WinStationExtensions" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" processorArchitecture="amd64">
+              <UserAuthentication>0</UserAuthentication>
+            </component>
+            <component name="Microsoft-Windows-TCPIP" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+              <Interfaces>
+                <Interface wcm:action="add">
+                    <Identifier>Ethernet</Identifier>
+                    <Ipv4Settings>
+                        <DhcpEnabled>false</DhcpEnabled>
+                        <Metric>20</Metric>
+                        <RouterDiscoveryEnabled>false</RouterDiscoveryEnabled>
+                    </Ipv4Settings>
+                    <UnicastIpAddresses>
+                        <IpAddress wcm:action="add" wcm:keyValue="1">@@{LAB_IP_PREFIX}@@.@@{calm_array_index}@@.11/24</IpAddress>
+                    </UnicastIpAddresses>
+                </Interface>
+              </Interfaces>
+            </component>
+            <component xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="Networking-MPSSVC-Svc" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+              <FirewallGroups>
+                <FirewallGroup wcm:action="add" wcm:keyValue="RemoteDesktop">
+                  <Active>true</Active>
+                  <Profile>all</Profile>
+                  <Group>@FirewallAPI.dll,-28752</Group>
+                </FirewallGroup>
+              </FirewallGroups>
+            </component>
+            <component xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+              <ComputerName>DC1</ComputerName>
+              <RegisteredOrganization>Nutanix</RegisteredOrganization>
+              <RegisteredOwner>Acropolis</RegisteredOwner>
+              <TimeZone>UTC</TimeZone>
+            </component>
+          </settings>
+          <settings pass="oobeSystem">
+            <component xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+              <UserAccounts>
+                <AdministratorPassword>
+                  <Value>@@{LAB_DEFAULT.secret}@@</Value>
+                  <PlainText>true</PlainText>
+                </AdministratorPassword>
+              </UserAccounts>
+              <AutoLogon>
+                <Password>
+                  <Value>@@{LAB_DEFAULT.secret}@@</Value>
+                  <PlainText>true</PlainText>
+                </Password>
+                <Enabled>true</Enabled>
+                <Username>Administrator</Username>
+              </AutoLogon>
+              <FirstLogonCommands>
+                <SynchronousCommand wcm:action="add">
+                  <CommandLine>cmd.exe /c netsh firewall add portopening TCP 5985 "Port 5985"</CommandLine>
+                  <Description>Win RM port open</Description>
+                  <Order>1</Order>
+                  <RequiresUserInput>true</RequiresUserInput>
+                </SynchronousCommand>
+              </FirstLogonCommands>
+              <OOBE>
+                <HideEULAPage>true</HideEULAPage>
+                <SkipMachineOOBE>true</SkipMachineOOBE>
+              </OOBE>
+            </component>
+            <component xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+              <InputLocale>en-US</InputLocale>
+              <SystemLocale>en-US</SystemLocale>
+              <UILanguageFallback>en-us</UILanguageFallback>
+              <UILanguage>en-US</UILanguage>
+              <UserLocale>en-US</UserLocale>
+            </component>
+          </settings>
+        </unattend>
+  nic_list:
+  - network_function_nic_type: INGRESS
+    nic_type: NORMAL_NIC
+    subnet_reference:
+      kind: subnet
+      name: '@@{LAB_NETWORK.name}@@'
+      uuid: '@@{LAB_NETWORK.uuid}@@'
+

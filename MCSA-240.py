@@ -9,6 +9,9 @@ LAB_DEFAULT = basic_cred('administrator', local_password, name='LAB_DEFAULT', de
 DOMAIN_ADMIN = basic_cred('administrator@lab.demo', domain_password, name='DOMAIN_ADMIN', default=False)
 
 
+# ================================================================================
+# ==== Remote Desktop VM with dual nics                                       ====
+# ================================================================================
 class RemoteVM(Service):
     """Remote Desktop VM service"""
 
@@ -62,6 +65,77 @@ class RemoteDeployment(Deployment):
 
 
 # ================================================================================
+# ==== Lab VMs                                                                ====
+# ================================================================================
+
+# DC1 Components
+class DC1VM(Service):
+    """DC1 VM service"""
+    pass
+
+
+class DC1Package(Package):
+    """DC1 Package"""
+
+    services = [ref(DC1VM)]
+
+
+class DC1VMS(Substrate):
+    """DC1 Substrate"""
+
+    provider_spec = read_provider_spec('templates/mcsa-20-41-DC1.yaml')
+
+    readiness_probe = {
+        'disabled': True,
+        'connection_type': 'POWERSHELL',
+        'connection_port': 5985,
+        'credential': ref(LAB_DEFAULT)
+    }
+    os_type = 'Windows'
+
+
+class DC1Deployment(Deployment):
+    """DC1 Deployment"""
+
+    packages = [ref(DC1Package)]
+    substrate = ref(DC1VMS)
+    min_replicas = '@@{COUNT}@@'
+
+
+# SRV1 Components
+class SRV1VM(Service):
+    """SRV1 VM service"""
+    pass
+
+
+class SRV1Package(Package):
+    """SRV1 Package"""
+
+    services = [ref(SRV1VM)]
+
+
+class SRV1VMS(Substrate):
+    """SRV1 Substrate"""
+
+    provider_spec = read_provider_spec('templates/mcsa-20-41-SRV1.yaml')
+
+    readiness_probe = {
+        'disabled': True,
+        'connection_type': 'POWERSHELL',
+        'connection_port': 5985,
+        'credential': ref(LAB_DEFAULT)
+    }
+    os_type = 'Windows'
+
+
+class SRV1Deployment(Deployment):
+    """SRV1 Deployment"""
+
+    packages = [ref(SRV1Package)]
+    substrate = ref(SRV1VMS)
+    min_replicas = '@@{COUNT}@@'
+
+# ================================================================================
 # ==== Common blueprint components                                            ====
 # ================================================================================
 
@@ -69,7 +143,7 @@ class RemoteDeployment(Deployment):
 class AHV(Profile):
     """AHV defualt profile"""
 
-    deployments = [RemoteDeployment]
+    deployments = [RemoteDeployment, DC1Deployment, SRV1Deployment]
     LAB_IP_PREFIX = CalmVariable.Simple.string('192.168', runtime=True)
     DOMAIN_NAME = CalmVariable.Simple.string('lab.demo', runtime=True, label='University Domain')
     DNS_SERVERS = CalmVariable.Simple.string('10.38.14.14', runtime=True, label='Domain DNS')
@@ -85,9 +159,9 @@ class MCSA(Blueprint):
     """MCSA20-410 Blueprint"""
 
     credentials = [LAB_DEFAULT, DOMAIN_ADMIN]
-    services = [RemoteVM]
-    packages = [RemotePackage]
-    substrates = [RemoteVMS]
+    services = [RemoteVM, DC1VM, SRV1VM]
+    packages = [RemotePackage, DC1Package, SRV1Package]
+    substrates = [RemoteVMS, DC1VMS, SRV1VMS]
     profiles = [AHV]
 
 
