@@ -1,0 +1,35 @@
+name: vm_@@{calm_application_name}@@-@@{calm_array_index}@@
+resources:
+  boot_config:
+    boot_device:
+      disk_address:
+        adapter_type: SCSI
+        device_index: 0
+  disk_list:
+  - data_source_reference:
+      kind: image
+      name: centos-8
+      uuid: f62deab9-6656-4dac-aa61-d2d31686c068
+    device_properties:
+      device_type: DISK
+      disk_address:
+        adapter_type: SCSI
+        device_index: 0
+    disk_size_mib: 0
+  memory_size_mib: 2048
+  guest_customization:
+    cloud_init:
+      user_data: |-
+        #cloud-config
+        password: "nutanix/4u"
+        ssh_pwauth: True
+        chpasswd: { expire: False }
+  nic_list:
+  - network_function_nic_type: INGRESS
+    nic_type: NORMAL_NIC
+    subnet_reference:
+      kind: subnet
+      name: MCSA-240-S1
+      uuid: e88e9d86-6c21-444e-8148-f2f8dac23039
+  num_sockets: 1
+  num_vcpus_per_socket: 1
