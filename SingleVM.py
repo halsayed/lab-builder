@@ -11,19 +11,22 @@ DOMAIN_ADMIN = basic_cred('administrator@lab.demo', domain_password, name='DOMAI
 
 
 # ================================================================================
-# ==== Remote Desktop VM with dual nics                                       ====
+# ==== Remote Desktop VM with single nic and joined to domain                 ====
 # ================================================================================
 class RemoteVM(Service):
     """Remote Desktop VM service"""
 
     OWNER = CalmVariable.Simple('', runtime=False)
+    DIRECTORY_UUID = CalmVariable.Simple('', runtime=False)
 
     @action
     def __create__(self):
-        CalmTask.Exec.powershell(filename='scripts/join_domain.ps1', name='join domain', cred=LAB_DEFAULT)
-        CalmTask.Delay(delay_seconds=60, name='wait for domain')
         CalmTask.SetVariable.escript(filename='scripts/get_vm_owner_username.py', name='get owner username',
                                      variables=['OWNER'])
+        CalmTask.SetVariable.escript(name='get directory uuid', filename='scripts/get_directory_uuid.py',
+                                     variables=['DIRECTORY_UUID'])
+        CalmTask.Exec.powershell(filename='scripts/join_domain.ps1', name='join domain', cred=LAB_DEFAULT)
+        CalmTask.Delay(delay_seconds=60, name='wait for domain')
         CalmTask.Exec.powershell(script='Add-LocalGroupMember -Group "Administrators" -Member @@{OWNER}@@',
                                  name='add owner to local admin', cred=DOMAIN_ADMIN)
         CalmTask.Exec.escript(filename='scripts/set_prism_owner.py', name='set prism owner')
@@ -38,7 +41,7 @@ class RemotePackage(Package):
 class RemoteVMS(Substrate):
     """Remote Desktop Substrate"""
 
-    provider_spec = read_provider_spec('templates/remote_desktop_vm.yaml')
+    provider_spec = read_provider_spec('templates/singleVM_1nic_domain.yaml')
 
     readiness_probe = {
         'disabled': True,
@@ -51,10 +54,9 @@ class RemoteVMS(Substrate):
     @action
     def __pre_create__(self):
         CalmTask.SetVariable.escript(name='set lab network', filename='scripts/set_network_uuid.py',
-                                     variables=['LAB_NETWORK', 'EXTERNAL_NETWORK'])
+                                     variables=['EXTERNAL_NETWORK'])
 
-        CalmTask.SetVariable.escript(name='get directory uuid', filename='scripts/get_directory_uuid.py',
-                                     variables=['DIRECTORY_UUID'])
+
 
 
 class RemoteDeployment(Deployment):
@@ -74,19 +76,16 @@ class AHV(Profile):
     """AHV defualt profile"""
 
     deployments = [RemoteDeployment]
-    LAB_IP_PREFIX = CalmVariable.Simple.string('192.168', runtime=True)
     DOMAIN_NAME = CalmVariable.Simple.string('lab.demo', runtime=True, label='University Domain')
-    DNS_SERVERS = CalmVariable.Simple.string('10.38.14.14', runtime=True, label='Domain DNS')
     LIST = CalmVariable.Simple.multiline('', runtime=True, label='Students List')
     COUNT = CalmVariable.WithOptions.Predefined.int(list(map(str, range(1, 21))), default='1', runtime=True,
                                                     label='Lab Seat Count')
     EXTERNAL_NETWORK = CalmVariable.Simple.string('', runtime=False, is_hidden=True)
-    LAB_NETWORK = CalmVariable.Simple.string('', runtime=False, is_hidden=True)
     DIRECTORY_UUID = CalmVariable.Simple.string('', runtime=False, is_hidden=True)
 
 
 class SingleVM(Blueprint):
-    """MCSA20-410 Blueprint"""
+    """Single VM, 1 nic card and joined to domain Blueprint"""
 
     credentials = [LAB_DEFAULT, DOMAIN_ADMIN]
     services = [RemoteVM]

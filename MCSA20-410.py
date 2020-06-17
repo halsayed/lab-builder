@@ -16,13 +16,16 @@ class RemoteVM(Service):
     """Remote Desktop VM service"""
 
     OWNER = CalmVariable.Simple('', runtime=False)
+    DIRECTORY_UUID = CalmVariable.Simple('', runtime=False)
 
     @action
     def __create__(self):
-        CalmTask.Exec.powershell(filename='scripts/join_domain.ps1', name='join domain', cred=LAB_DEFAULT)
-        CalmTask.Delay(delay_seconds=60, name='wait for domain')
         CalmTask.SetVariable.escript(filename='scripts/get_vm_owner_username.py', name='get owner username',
                                      variables=['OWNER'])
+        CalmTask.SetVariable.escript(name='get directory uuid', filename='scripts/get_directory_uuid.py',
+                                     variables=['DIRECTORY_UUID'])
+        CalmTask.Exec.powershell(filename='scripts/join_domain.ps1', name='join domain', cred=LAB_DEFAULT)
+        CalmTask.Delay(delay_seconds=60, name='wait for domain')
         CalmTask.Exec.powershell(script='Add-LocalGroupMember -Group "Administrators" -Member @@{OWNER}@@',
                                  name='add owner to local admin', cred=DOMAIN_ADMIN)
         CalmTask.Exec.escript(filename='scripts/set_prism_owner.py', name='set prism owner')
@@ -51,9 +54,6 @@ class RemoteVMS(Substrate):
     def __pre_create__(self):
         CalmTask.SetVariable.escript(name='set lab network', filename='scripts/set_network_uuid.py',
                                      variables=['LAB_NETWORK', 'EXTERNAL_NETWORK'])
-
-        CalmTask.SetVariable.escript(name='get directory uuid', filename='scripts/get_directory_uuid.py',
-                                     variables=['DIRECTORY_UUID'])
 
 
 class RemoteDeployment(Deployment):
@@ -93,6 +93,11 @@ class DC1VMS(Substrate):
     }
     os_type = 'Windows'
 
+    @action
+    def __pre_create__(self):
+        CalmTask.SetVariable.escript(name='set lab network', filename='scripts/set_network_uuid.py',
+                                     variables=['LAB_NETWORK'])
+
 
 class DC1Deployment(Deployment):
     """DC1 Deployment"""
@@ -127,6 +132,11 @@ class SRV1VMS(Substrate):
     }
     os_type = 'Windows'
 
+    @action
+    def __pre_create__(self):
+        CalmTask.SetVariable.escript(name='set lab network', filename='scripts/set_network_uuid.py',
+                                     variables=['LAB_NETWORK'])
+
 
 class SRV1Deployment(Deployment):
     """SRV1 Deployment"""
@@ -146,7 +156,6 @@ class AHV(Profile):
     deployments = [RemoteDeployment, DC1Deployment, SRV1Deployment]
     LAB_IP_PREFIX = CalmVariable.Simple.string('192.168', runtime=True)
     DOMAIN_NAME = CalmVariable.Simple.string('lab.demo', runtime=True, label='University Domain')
-    DNS_SERVERS = CalmVariable.Simple.string('10.38.14.14', runtime=True, label='Domain DNS')
     LIST = CalmVariable.Simple.multiline('', runtime=True, label='Students List')
     COUNT = CalmVariable.WithOptions.Predefined.int(list(map(str, range(1, 21))), default='1', runtime=True,
                                                     label='Lab Seat Count')

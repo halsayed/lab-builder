@@ -41,13 +41,16 @@ def get_user_uuid(username, directory_uuid=None):
     api_endpoint = 'users/list'
     payload = { 'kind': 'user',
                 'filter': 'username=={}'.format(username)}
+    print('Prism API call to search for user: {}'.format(username))
     users = http_request(api_endpoint, payload)
     for user in users['entities']:
         if user['spec']['resources']['directory_service_user']['user_principal_name'] == username:
+            print('user found on Prism with uuid: {}'.format(user['metadata']['uuid']))
             return {'username': username, 'uuid': user['metadata']['uuid']}
 
     # if user not found and directory set then create the user
     if directory_uuid:
+        print('user not found in Prism, creating the user')
         payload = {
             'api_version': '3.1.0',
             'metadata': {
@@ -67,26 +70,28 @@ def get_user_uuid(username, directory_uuid=None):
         }
         api_endpoint = 'users'
         new_user = http_request(api_endpoint, payload)
+        print('user created in prism with uuid: {}'.format(new_user['metadata']['uuid']))
         return {'username': username, 'uuid': new_user['metadata']['uuid']}
 
 
 def update_vm_owner(owner, uuid):
     api_endpoint = 'vms/{}'.format(uuid)
-
     # get VM info
     vm = http_request(api_endpoint, method='GET')
+    print('Get VM info from prism, vm uuid: {}'.format(uuid))
 
     # update the VM with the owner info
     del(vm['status'])
     del(vm['metadata']['last_update_time'])
     vm['metadata']['owner_reference']['name'] = owner['username']
     vm['metadata']['owner_reference']['uuid'] = owner['uuid']
-    http_request(api_endpoint, payload=vm, method='PUT')
+    result = http_request(api_endpoint, payload=vm, method='PUT')
+    print(result)
 
 
 owner_username = '@@{OWNER}@@'
 directory_uuid = '@@{DIRECTORY_UUID}@@'
-owner_object = get_user_uuid(owner_username)
+owner_object = get_user_uuid(owner_username, directory_uuid)
 vm_uuid = '@@{id}@@'
 update_vm_owner(owner_object, vm_uuid)
 
